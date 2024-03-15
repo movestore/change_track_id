@@ -1,43 +1,65 @@
 library("shiny")
 library("move2")
 library("sf")
+library("dplyr")
 
-# to display messages to the user in the log file of the App in MoveApps
-# one can use the function from the src/common/logger.R file:
-# logger.fatal(), logger.error(), logger.warn(), logger.info(), logger.debug(), logger.trace()
+## TODO: make collapse, separator, "\n" work...
 
 shinyModuleUserInterface <- function(id, label) {
-  # all IDs of UI functions need to be wrapped in ns()
   ns <- NS(id)
-  # showcase to access a file ('auxiliary files') that is 
-  # a) provided by the app-developer and 
-  # b) can be overridden by the workflow user.
-  fileName <- paste0(getAppFilePath("yourLocalFileSettingId"), "sample.txt")
- 
-   tagList(
-    titlePanel("MoveApps R-Shiny SDK"),
-    uiOutput(ns('uiIndivL')),
-    plotOutput(ns("plot")),
-    p(readChar(fileName, file.info(fileName)$size))
+  tagList(
+    titlePanel(h1("Define the track ID",h5("The track ID is what defines a track. If you have downloaded the data from Movebank with the Movebank App, than by default each track will correspond to a deployment. One animal can have several deployments, and mostly it makes sense to separate them into different tracks, as there might be large gaps between these deployments. With this App you can (1) join several tracks into one, e.g. by choosing the individual_local_identifier, which will join all tracks of the same individual into one (keep in mind the possible gaps); or you can (2) split one track into multiple tracks by using an attribute (also those created in another App) which has assigned to each location a season, behavioural state, etc (be aware that this could create an extreme large number of tracks)."))),
+    fluidRow(
+      column(4,uiOutput(ns('uiAttributeLcurr'))),
+      column(4,uiOutput(ns('uiAttributeLnew')))
+    ),
+    fluidRow(
+      column(3,textOutput(ns("currID"))),
+      column(3,offset=1,textOutput(ns("selecID")))
+    )
+    
   )
 }
 
-# The parameter "data" is reserved for the data object passed on from the previous app
+
 shinyModule <- function(input, output, session, data) {
-  # all IDs of UI functions need to be wrapped in ns()
   ns <- session$ns
-  current <- reactiveVal(data)
+  data_out <- reactiveVal(data)
   
-  ##--## example code - choose which individual to plot ##--## 
-  output$uiIndivL <- renderUI({
-    selectInput(ns("indivL"), "Select individual", choices=unique(mt_track_id(data)), selected=unique(mt_track_id(data))[1])
+  output$uiAttributeLcurr <- renderUI({
+    trkid <- mt_track_id_column(data)
+    selectInput(ns("attributeLcurr"), "Attribute currently defining the tracks", selected=trkid,choices=trkid)
   })
-  output$plot <- renderPlot({
-    dat <- filter_track_data(data, .track_id=input$indivL)
-    plot(st_geometry(mt_track_lines(dat)))
-  })
-  ##--## end of example ##--##
   
-  # data must be returned. Either the unmodified input data, or the modified data by the app
-  return(reactive({ current() }))
+  output$uiAttributeLnew <- renderUI({
+    trkattrb <- names(mt_track_data(data))
+    evntattrb <- names(data)
+    attrbs <- c(trkattrb,evntattrb)
+    attrbs <- c("",attrbs[order(attrbs)])
+    selectInput(ns("attributeLnew"), "Select attribute that will define the track Id", choices=attrbs,selected = "")
+  })
+  
+  output$currID <- renderPrint({cat(paste("CURRENT track IDs (n=",length(unique(mt_track_id(data))),"): ",paste(unique(mt_track_id(data)),collapse=", "), sep="\n"))})
+  
+  observeEvent(input$attributeLnew,{
+    if(input$attributeLnew%in%names(mt_track_data(data))){
+      selID <- unique(mt_track_data(data) %>% pull(input$attributeLnew))
+      if(is.factor(selID)){selID <- as.character(selID)}
+      dataN <- mt_as_event_attribute(data_out(), input$attributeLnew)
+      mt_track_id(dataN) <- input$attributeLnew
+      data_out(dataN)
+    } 
+    if(input$attributeLnew%in%names(data)){
+      selID <- unique(data %>% pull(input$attributeLnew))
+      if(is.factor(selID)){selID <- as.character(selID)}
+      dataN <- data_out()
+      mt_track_id(dataN) <- input$attributeLnew
+      data_out(dataN)
+    }
+    if(input$attributeLnew==""){selID <- NA}
+    
+    output$selecID <- renderPrint({cat(paste("SELECTED track IDs (n=",length(selID),"): ",paste(selID,collapse = ", "),sep="\n")) })
+  })
+  
+  return(data_out)
 }
