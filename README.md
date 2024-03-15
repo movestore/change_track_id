@@ -31,6 +31,8 @@ none
 
 `Select attribute that will define the track Id`: displays the names of the selected track IDs. "n" displays the number of tracks that will be created.
 
+`Apply selected attribute`: click to apply the selected attribute to redefine the track IDs.
+
 `Store settings`: click to store the current settings of the app for future workflow runs
 
 ### Most common errors
