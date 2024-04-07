@@ -57,30 +57,32 @@ shinyModule <- function(input, output, session, data) {
   })
   
   observeEvent(input$gobttn,{
-    if(input$attributeLnew%in%names(mt_track_data(data))){
-      dataN <- mt_as_event_attribute(data_out(), input$attributeLnew)
-      output$selCol <- renderPrint({
-        tryCatch(
-          mt_track_id(dataN) <- input$attributeLnew,
-          error = function(c){
-            c$message <- paste0('"',input$attributeLnew,'"', " cannot be used to define tracks. The attribute defining the tracks needs to be a character or numeric (without units)")
-            stop(c)
-          })
-      })
-      data_out(dataN)
-    } 
-    if(input$attributeLnew%in%names(data)){
+    # if(input$attributeLnew%in%names(mt_track_data(data))){
+    #  dataN <- mt_as_event_attribute(data_out(), input$attributeLnew)
+    #   output$selCol <- renderPrint({
+    #     tryCatch(
+    #       mt_track_id(dataN) <- input$attributeLnew,
+    #       error = function(c){
+    #         c$message <- paste0('"',input$attributeLnew,'"', " cannot be used to define tracks. The attribute defining the tracks needs to be a character or numeric (without units)")
+    #         stop(c)
+    #       })
+    #   })
+    #   data_out(dataN)
+    # } 
+    # if(input$attributeLnew%in%names(data)){
       dataN <- data_out()
       output$selCol <- renderPrint({
         tryCatch(
-          mt_track_id(dataN) <- input$attributeLnew,
+          dataN <- mt_set_track_id(dataN,input$attributeLnew),
           error = function(c){
             c$message <- paste0('"',input$attributeLnew,'"', " cannot be used to define tracks. The attribute defining the tracks needs to be a character or numeric (without units)")
             stop(c)
           })
       })
+      dataN <- mt_set_track_id(dataN,input$attributeLnew)
+      logger.info(paste0("The track ID is now defined by: ", mt_track_id_column(dataN)))
       data_out(dataN)
-    }
+# }
   })
   return(data_out)
 }
